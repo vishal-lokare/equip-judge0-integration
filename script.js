@@ -77,6 +77,12 @@ function populateCodeInput(lang) {
     codeInput.value = question.prefilledCode[lang];
 }
 
+document.addEventListener("keydown", function (event) {
+    if(event.ctrlKey && event.key === "'") {
+        document.getElementById("submitBtn").click();
+    }
+});
+
 // async call to get the question details
 // this code will actually be on the server side, so that the question details are not exposed to the client
 window.onload = function() {
