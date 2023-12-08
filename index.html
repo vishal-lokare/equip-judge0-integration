@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Equip Judge0 Integration</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://code.jquery.com/jquery-3.1.1.min.js" integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=" crossorigin="anonymous"></script>
+
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="logo navbar-items"><img height="45px" src="https://equip.co/static/img/equip-logo.png"></div>
+    <p class="navbar-heading navbar-items">Judge0 Integration</p>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main-content">
+
+    <div class="left-column">
+      <div class="question">
+        <h2 id="qtitle"></h2>
+        <p id="qdesc"></p>
+      </div>
+
+      <div class="test-cases">
+        <div class="test-cases-select">
+          <button id="sample-tc-button" class="tc-buttons" disabled>Sample Test Cases</button>
+          <button id="custom-tc-button" class="tc-buttons">Custom Test Cases</button>
+          <br><br>
+
+          <table id="sample-tc-table" style="text-align: center;">
+            <tr>
+              <th>Input</th>
+              <th>Expected Output</th>
+              <th>Output</th>
+              <th>Compile Error</th>
+              <th>Execution result</th>
+            </tr>
+          </table>
+
+          <table id="custom-tc-table" style="text-align: center; display: none;">
+            <tr>
+              <th>Input</th>
+              <th>Output</th>
+              <th>Compile Error</th>
+            </tr>
+            <tr>
+              <td><input type="text" id="custom-tc-input"></td>
+              <td><div class="custom-tc-output"></div></td>
+              <td><div class="custom-tc-compile-error"></div></td>
+            </tr>
+          </table>
+        
+        </div>
+      </div>
+    </div>
+
+    <div class="code-editor">
+      
+      <select id="languageInput">
+        <option value="c++" selected>C++</option>
+        <option value="python">Python</option>
+        <option value="javascript">JavaScript</option>
+      </select>
+
+      <br><br>
+
+      <div>
+        <textarea id="codeInput" rows="10" cols="50"></textarea>
+      </div>
+
+    </div>
+  </div>
+
+  <button id="submitBtn">Submit</button>
+
+  <script src="script.js"></script>
+</body>
+</html>
