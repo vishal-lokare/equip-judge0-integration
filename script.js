@@ -1,5 +1,6 @@
 // Hosted judge0 on a Ubuntu VM, network mode set as bridged
-let apiURL = "http://192.168.1.7:2358/";
+// Uncomment this line with correct API URL
+// let apiURL = "http://192.168.1.7:2358/";
 
 // Fields to be returned by judge0
 let fields = "stdin,stdout,stderr,token,status"
