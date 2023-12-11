@@ -3,7 +3,7 @@
 // let apiURL = "http://192.168.1.7:2358/";
 
 // Fields to be returned by judge0
-let fields = "stdin,stdout,stderr,token,status"
+let fields = "stdin,stdout,stderr,token,status,compile_output";
 
 // Temporary database at Firebase for storing questions data
 let dbURL = "https://equip-test-401e4-default-rtdb.asia-southeast1.firebasedatabase.app/";
@@ -11,8 +11,11 @@ let dbURL = "https://equip-test-401e4-default-rtdb.asia-southeast1.firebasedatab
 // Initially, sample test cases are displayed
 let isSampleTestCase = true;
 
+let abort = false;
+
 // DOM elements
 let submitButton = document.getElementById("submitBtn");
+let abortButton = document.getElementById("abortBtn");
 let codeInput = document.getElementById("codeInput");
 let languageInput = document.getElementById("languageInput");
 
@@ -31,7 +34,14 @@ let customTestCaseOutput = document.getElementsByClassName("custom-tc-output")[0
 let customTestCaseCompileErr = document.getElementsByClassName("custom-tc-compile-error")[0];
 
 // Question data model
-const Question = class {
+class Question {
+    arrayOfTokens = [];
+    customTCToken;
+
+    // count of completed test cases
+    completedCount = 0;
+    completedTestCases = [];
+
     constructor(qid, qtitle, qdesc, sampleTestCases, prefilledCode, driverCode) {
         this.qid = qid;
         this.qtitle = qtitle;
@@ -51,8 +61,8 @@ let mp = new Map();
 if(url.split("?").length < 2) alert('Enter qid in the URL');
 let params = url.split("?")[1].split("&");
 
-for(let arguments of params) {
-    mp.set(arguments.split("=")[0], arguments.split("=")[1]);
+for(let args of params) {
+    mp.set(args.split("=")[0], args.split("=")[1]);
 }
 
 let question;
@@ -78,6 +88,16 @@ function populateCodeInput(lang) {
     codeInput.value = question.prefilledCode[lang];
 }
 
+function enableSubmitButton() {
+    submitButton.disabled = false;
+    abortButton.disabled = true;
+}
+
+function disableSubmitButton() {
+    submitButton.disabled = true;
+    abortButton.disabled = false;
+}
+
 document.addEventListener("keydown", function (event) {
     if(event.ctrlKey && event.key === "'") {
         document.getElementById("submitBtn").click();
@@ -100,9 +120,18 @@ window.onload = function() {
         contentType: "application/json",
         error: function (jqXHR, textStatus, errorThrown) {
             console.log(`Error: ${JSON.stringify(jqXHR)}`);
+
+            alert("Error connecting to database");
         },
         success: function (data, textStatus, jqXHR) {
-            question = data;
+            question = new Question(
+                data.qid,
+                data.qtitle,
+                data.qdesc,
+                data.sampleTestCases,
+                data.prefilledCode,
+                data.driverCode
+            );
 
             // again server side code
             // filling code editor with prefilled code
@@ -152,6 +181,7 @@ window.onload = function() {
     });
 };
 
+// EVENT LISTENERS
 
 sampleTestCaseButton.addEventListener("click", function() {
     // sample buttom clicked
@@ -201,18 +231,62 @@ submitButton.addEventListener("click", function() {
     }
 });
 
+abortButton.addEventListener("click", function() {
+    abort = true;
+    enableSubmitButton();
+    if(isSampleTestCase) {
+        for(let index = 0; index < question.arrayOfTokens.length; index++) {
+            let outputDiv = document.getElementsByClassName("tc-result")[index];
+            outputDiv.innerText = "Aborted";
+            outputDiv.style.backgroundColor = "#FF0000";
+        }
+    } else {
+        customTestCaseOutput.innerText = "Aborted";
+        customTestCaseOutput.style.backgroundColor = "#FF0000";
+    }
+});
+
 function fetchSubmission(apiURL, token, index = 0) {
     // fetches submission using the token, and updates in the respective test cases div
 
     $.ajax({
-        url: apiURL + "submissions/" + token + `?fields=${fields}`,
+        url: apiURL + "submissions/" + token + '?base64_encoded=true' + `&fields=${fields}`,
         type: "GET",
         async: true,
         contentType: "application/json",
         error: function (jqXHR, textStatus, errorThrown) {
             console.log(`Error: ${JSON.stringify(jqXHR)}`);
+            enableSubmitButton();
         },
         success: function (data, textStatus, jqXHR) {
+            // decode from base64
+            data.stdout = atob(data.stdout);
+
+            // if interpreter language, then errors are logged in stderr
+            // for compiled codes, compile_output contains the errors
+            
+            if(language == "python" && typeof(data.stderr) == "string") {
+                let arr = data.stderr.split("\n");
+
+                let base64decoded = '';
+                for(let lines of arr) {
+                    base64decoded += atob(lines) + "\n";
+                }
+                data.stderr = base64decoded;
+            }
+
+            if(typeof(data.compile_output) == "string") {
+                let arr = data.compile_output.split("\n");
+                
+                let base64decoded = '';
+                for(let lines of arr) {
+                    base64decoded += atob(lines) + "\n";
+                }
+                data.compile_output = base64decoded;
+            }
+
+            data.stdin = atob(data.stdin);
+
             console.log(`Success: ${JSON.stringify(data)}`);
             console.log(`Status: ${data.status.id}, for the input ${data.stdin}`);
             let outputDiv;
@@ -225,17 +299,31 @@ function fetchSubmission(apiURL, token, index = 0) {
                 execResultDiv = document.getElementsByClassName("exec-result")[index];
             } else {
                 outputDiv = customTestCaseOutput;
+                execResultDiv = customTestCaseCompileErr;
             }
             
             if(data.status.id <= 2) {
-                setTimeout(function() {
-                    fetchSubmission(apiURL, token, index);
-                }, 1500);
+                if(!abort) {
+                    setTimeout(function() {
+                        fetchSubmission(apiURL, token, index);
+                    }, 1500);
+                }
             } else {
                 if(isSampleTestCase) {
+                    // to enable the submit button since this test case is completed
+                    question.completedCount++;
+                    question.completedTestCases[index] = true;
+
+                    console.log(`Completed: ${question.completedCount}`);
+
+                    if(question.completedCount >= Object.keys(question.sampleTestCases).length) {
+                        enableSubmitButton();
+                        question.completedCount = 0;
+                    }
+
                     outputDiv.innerText = data.stdout || "NA";
                     compileErrorDiv.innerText = data.stderr == null && data.status.description != "Compilation Error" ? "NO" : "YES";
-                    execResultDiv.innerText = data.stderr;
+                    execResultDiv.innerText = language == "python" ? data.stderr : data.compile_output;
 
                     switch(data.status.description) {
                         case "Accepted": 
@@ -249,8 +337,11 @@ function fetchSubmission(apiURL, token, index = 0) {
                             break;
                     }
                 } else {
+                    // Custom TC
+
+                    enableSubmitButton();
                     customTestCaseOutput.innerText = data.stdout || "NA";
-                    customTestCaseCompileErr.innerText = data.stderr == null ? "NO" : "YES";
+                    execResultDiv.innerText = language == "python" ? data.stderr : data.compile_output;
                 }
             }
         }
@@ -258,15 +349,19 @@ function fetchSubmission(apiURL, token, index = 0) {
 }
 
 function submit(code, input, output = null, index = 0) {
+    abort = false;
+
     // call locally hosted Judge0 API
     console.log(`Input: ${input}`);
     console.log(`Code: ${code}`);
 
     let data = {
+        // this is still not working
+        "callback_url": "http://127.0.0.1:3000/",
         "source_code": code,
         "language_id": languages[language],
         "stdin": input,
-        "expected_output": output || null,
+        "expected_output": output || null
     };
 
     let outputDiv;
@@ -288,12 +383,25 @@ function submit(code, input, output = null, index = 0) {
         success: function (data, textStatus, jqXHR) {
             console.log(`Success: ${JSON.stringify(data)}`);
             let token = data.token;
-            console.log(data);
+            // console.log(data);
+
+            // save token in array on the index
+            if(isSampleTestCase) {
+                question.arrayOfTokens[index] = token;
+            } else {
+                question.customTCToken = token;
+            }
+
+            disableSubmitButton();
 
             fetchSubmission(apiURL, token, index);
         },
         error: function (jqXHR, textStatus, errorThrown) {
             console.log(`Error: ${JSON.stringify(jqXHR)}`);
+
+            outputDiv.innerText = "Error, can't connect";
+
+            enableSubmitButton();
         }
     });
 }

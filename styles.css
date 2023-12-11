@@ -52,7 +52,12 @@ tr {
   margin-left: 20px;
 }
 
-#submitBtn {
+.button-container {
+  display: flex;
+  margin-left: 20px;
+}
+
+.submission-buttons {
   display: block;
   margin: 20px auto;
   padding: 10px 20px;
