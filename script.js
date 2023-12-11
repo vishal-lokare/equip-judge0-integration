@@ -1,6 +1,6 @@
 // Hosted judge0 on a Ubuntu VM, network mode set as bridged
 // Uncomment this line with correct API URL
-// let apiURL = "http://192.168.1.7:2358/";
+let apiURL = "http://192.168.1.12:2358/";
 
 // Fields to be returned by judge0
 let fields = "stdin,stdout,stderr,token,status,compile_output";
@@ -235,10 +235,12 @@ abortButton.addEventListener("click", function() {
     abort = true;
     enableSubmitButton();
     if(isSampleTestCase) {
-        for(let index = 0; index < question.arrayOfTokens.length; index++) {
-            let outputDiv = document.getElementsByClassName("tc-result")[index];
-            outputDiv.innerText = "Aborted";
-            outputDiv.style.backgroundColor = "#FF0000";
+        let outputDivs = document.getElementsByClassName("tc-result");
+        for(let index = 0; index < outputDivs.length; index++) {
+            if(outputDivs[index].innerText == "Running...") {
+                outputDivs[index].innerText = "Aborted";
+                outputDivs[index].style.backgroundColor = "#FF0000";
+            }
         }
     } else {
         customTestCaseOutput.innerText = "Aborted";
@@ -259,6 +261,11 @@ function fetchSubmission(apiURL, token, index = 0) {
             enableSubmitButton();
         },
         success: function (data, textStatus, jqXHR) {
+            if(abort) {
+                enableSubmitButton();
+                return;
+            }
+
             // decode from base64
             data.stdout = atob(data.stdout);
 
@@ -303,11 +310,9 @@ function fetchSubmission(apiURL, token, index = 0) {
             }
             
             if(data.status.id <= 2) {
-                if(!abort) {
-                    setTimeout(function() {
-                        fetchSubmission(apiURL, token, index);
-                    }, 1500);
-                }
+                setTimeout(function() {
+                    fetchSubmission(apiURL, token, index);
+                }, 1500);
             } else {
                 if(isSampleTestCase) {
                     // to enable the submit button since this test case is completed
